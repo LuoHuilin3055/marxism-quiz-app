@@ -194,6 +194,17 @@ h2 {
   gap: 8px;
 }
 
+.resume-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.resume-panel span {
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .danger-zone button {
   min-height: 40px;
   border-radius: 8px;

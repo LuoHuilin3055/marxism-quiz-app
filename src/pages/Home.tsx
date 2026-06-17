@@ -9,6 +9,7 @@ interface HomeProps {
   state: QuizState;
   setState: (state: QuizState) => void;
   go: (route: RouteName) => void;
+  startSequence: () => void;
   startRandom: () => void;
 }
 
@@ -17,6 +18,7 @@ export default function Home({
   state,
   setState,
   go,
+  startSequence,
   startRandom,
 }: HomeProps) {
   const overview = calculateOverview(
@@ -51,8 +53,27 @@ export default function Home({
         <ProgressBar label={`正确率 ${overview.accuracy}%`} value={overview.accuracy} />
       </section>
 
+      {state.sequenceProgress ? (
+        <section className="panel resume-panel">
+          <strong>
+            {state.sequenceProgress.isCompleted
+              ? "顺序刷题已完成"
+              : `上次做到第 ${state.sequenceProgress.currentIndex + 1} / ${
+                  questions.length
+                } 题`}
+          </strong>
+          <span>
+            已完成 {state.sequenceProgress.completedCount} 题 · 最后刷题{" "}
+            {new Date(state.sequenceProgress.lastPracticedAt).toLocaleString()}
+          </span>
+          <button className="primary-button" onClick={startSequence}>
+            {state.sequenceProgress.isCompleted ? "查看统计" : "继续顺序刷题"}
+          </button>
+        </section>
+      ) : null}
+
       <section className="action-grid">
-        <button className="primary-button" onClick={() => go("practice")}>
+        <button className="primary-button" onClick={startSequence}>
           顺序刷题
         </button>
         <button className="secondary-button" onClick={startRandom}>

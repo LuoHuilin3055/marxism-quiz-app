@@ -1,4 +1,4 @@
-import { AnswerRecord, QuizState } from "../types";
+import { AnswerRecord, QuizState, SequenceProgress } from "../types";
 
 const STORAGE_KEY = "marxism_quiz_state_v1";
 
@@ -7,6 +7,7 @@ const emptyState: QuizState = {
   history: [],
   favorites: [],
   wrongBook: [],
+  sequenceProgress: undefined,
 };
 
 function unique(values: number[]): number[] {
@@ -23,6 +24,7 @@ export function loadQuizState(): QuizState {
       history: parsed.history ?? [],
       favorites: unique(parsed.favorites ?? []),
       wrongBook: unique(parsed.wrongBook ?? []),
+      sequenceProgress: parsed.sequenceProgress,
     };
   } catch {
     return emptyState;
@@ -67,6 +69,21 @@ export function recordAnswer(
     },
     history: [record, ...state.history],
     wrongBook,
+  };
+  saveQuizState(nextState);
+  return nextState;
+}
+
+export function saveSequenceProgress(
+  state: QuizState,
+  progress: Omit<SequenceProgress, "lastPracticedAt">,
+): QuizState {
+  const nextState: QuizState = {
+    ...state,
+    sequenceProgress: {
+      ...progress,
+      lastPracticedAt: new Date().toISOString(),
+    },
   };
   saveQuizState(nextState);
   return nextState;
@@ -125,6 +142,7 @@ export function resetProgress(state: QuizState): QuizState {
     history: [],
     favorites: state.favorites,
     wrongBook: [],
+    sequenceProgress: undefined,
   };
   saveQuizState(nextState);
   return nextState;

@@ -16,6 +16,7 @@ export default function App() {
   const [state, setState] = useState<QuizState>(() => loadQuizState());
   const [targetQuestionId, setTargetQuestionId] = useState<number | undefined>();
   const [randomDefault, setRandomDefault] = useState(false);
+  const [practiceMode, setPracticeMode] = useState<"sequence" | "none">("none");
 
   useEffect(() => {
     document.title = "马克思主义刷题";
@@ -24,18 +25,32 @@ export default function App() {
   function go(nextRoute: RouteName) {
     setTargetQuestionId(undefined);
     setRandomDefault(false);
+    setPracticeMode("none");
     setRoute(nextRoute);
   }
 
   function openQuestion(questionId: number) {
     setTargetQuestionId(questionId);
     setRandomDefault(false);
+    setPracticeMode("none");
+    setRoute("practice");
+  }
+
+  function startSequence() {
+    if (state.sequenceProgress?.isCompleted) {
+      setRoute("statistics");
+      return;
+    }
+    setTargetQuestionId(state.sequenceProgress?.currentQuestionId);
+    setRandomDefault(false);
+    setPracticeMode("sequence");
     setRoute("practice");
   }
 
   function startRandom() {
     setTargetQuestionId(undefined);
     setRandomDefault(true);
+    setPracticeMode("none");
     setRoute("practice");
   }
 
@@ -43,7 +58,7 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <button onClick={() => go("home")}>首页</button>
-        <button onClick={() => go("practice")}>刷题</button>
+        <button onClick={startSequence}>刷题</button>
         <button onClick={() => go("statistics")}>统计</button>
       </header>
 
@@ -53,6 +68,7 @@ export default function App() {
           state={state}
           setState={setState}
           go={go}
+          startSequence={startSequence}
           startRandom={startRandom}
         />
       ) : null}
@@ -63,6 +79,7 @@ export default function App() {
           setState={setState}
           startQuestionId={targetQuestionId}
           randomDefault={randomDefault}
+          progressMode={practiceMode}
         />
       ) : null}
       {route === "wrong" ? (

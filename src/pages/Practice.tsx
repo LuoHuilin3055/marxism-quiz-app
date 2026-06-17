@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import QuestionCard from "../components/QuestionCard";
 import { Question, QuizState } from "../types";
-import { recordAnswer, toggleFavorite } from "../utils/storage";
+import {
+  recordAnswer,
+  saveSequenceProgress,
+  toggleFavorite,
+} from "../utils/storage";
 import { shuffleQuestions } from "../utils/questionUtils";
 
 interface PracticeProps {
@@ -11,6 +15,7 @@ interface PracticeProps {
   setState: (state: QuizState) => void;
   startQuestionId?: number;
   randomDefault?: boolean;
+  progressMode?: "sequence" | "none";
 }
 
 export default function Practice({
@@ -20,6 +25,7 @@ export default function Practice({
   setState,
   startQuestionId,
   randomDefault = false,
+  progressMode = "none",
 }: PracticeProps) {
   const [random, setRandom] = useState(randomDefault);
   const [completionMessage, setCompletionMessage] = useState("");
@@ -34,6 +40,7 @@ export default function Practice({
   );
   const [index, setIndex] = useState(startIndex);
   const question = orderedQuestions[index];
+  const isSequenceMode = progressMode === "sequence" && !random;
 
   useEffect(() => {
     return () => {
@@ -43,12 +50,42 @@ export default function Practice({
     };
   }, []);
 
+  useEffect(() => {
+    if (question && isSequenceMode) {
+      updateSequenceProgress(state, index);
+    }
+  }, []);
+
   if (!question) {
     return (
       <main className="page">
         <section className="empty-state">暂无题目</section>
       </main>
     );
+  }
+
+  function getCompletedCount(nextState: QuizState) {
+    return Object.keys(nextState.latestByQuestion).length;
+  }
+
+  function updateSequenceProgress(
+    baseState: QuizState,
+    nextIndex: number,
+    isCompleted = false,
+  ) {
+    if (!isSequenceMode) return baseState;
+    const safeIndex = Math.min(Math.max(nextIndex, 0), orderedQuestions.length - 1);
+    const nextQuestion = orderedQuestions[safeIndex];
+    if (!nextQuestion) return baseState;
+
+    const nextState = saveSequenceProgress(baseState, {
+      currentQuestionId: nextQuestion.id,
+      currentIndex: safeIndex,
+      completedCount: getCompletedCount(baseState),
+      isCompleted,
+    });
+    setState(nextState);
+    return nextState;
   }
 
   function saveAnswer(answer: string[], isCorrect: boolean) {
@@ -67,15 +104,19 @@ export default function Practice({
 
     if (!isCorrect) {
       setCompletionMessage("");
+      updateSequenceProgress(nextState, index);
       return;
     }
 
     autoNextTimer.current = window.setTimeout(() => {
       if (index < orderedQuestions.length - 1) {
-        setIndex((value) => Math.min(value + 1, orderedQuestions.length - 1));
+        const nextIndex = index + 1;
+        setIndex(nextIndex);
         setCompletionMessage("");
+        updateSequenceProgress(nextState, nextIndex);
       } else {
         setCompletionMessage("已完成全部题目");
+        updateSequenceProgress(nextState, index, true);
       }
     }, 700);
   }
@@ -85,7 +126,9 @@ export default function Practice({
       window.clearTimeout(autoNextTimer.current);
     }
     setCompletionMessage("");
-    setIndex(Math.min(Math.max(nextIndex, 0), orderedQuestions.length - 1));
+    const safeIndex = Math.min(Math.max(nextIndex, 0), orderedQuestions.length - 1);
+    setIndex(safeIndex);
+    updateSequenceProgress(state, safeIndex);
   }
 
   return (

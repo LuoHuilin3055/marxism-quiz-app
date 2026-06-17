@@ -20,11 +20,20 @@ export interface AnswerRecord {
   isWrongBook: boolean;
 }
 
+export interface SequenceProgress {
+  currentQuestionId: number;
+  currentIndex: number;
+  completedCount: number;
+  lastPracticedAt: string;
+  isCompleted: boolean;
+}
+
 export interface QuizState {
   latestByQuestion: Record<number, AnswerRecord>;
   history: AnswerRecord[];
   favorites: number[];
   wrongBook: number[];
+  sequenceProgress?: SequenceProgress;
 }
 
 export type RouteName =
