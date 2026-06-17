@@ -13,6 +13,9 @@ export interface AnswerRecord {
   questionId: number;
   userAnswer: string[];
   isCorrect: boolean;
+  isCompleted?: boolean;
+  correctCount?: number;
+  wrongCount?: number;
   correctAnswer: string[];
   answeredAt: string;
   attemptNumber: number;
@@ -27,6 +30,8 @@ export interface SequenceProgress {
   lastPracticedAt: string;
   isCompleted: boolean;
 }
+
+export type PracticeMode = "sequence" | "random" | "wrong" | "favorite" | "normal";
 
 export interface QuizState {
   latestByQuestion: Record<number, AnswerRecord>;

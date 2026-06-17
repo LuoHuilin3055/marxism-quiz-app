@@ -8,6 +8,7 @@ interface QuestionCardProps {
   total: number;
   isFavorite: boolean;
   latestAnswer?: string[];
+  showPreviousAnswer?: boolean;
   onAnswer: (answer: string[], isCorrect: boolean) => void;
   onToggleFavorite: () => void;
 }
@@ -18,12 +19,16 @@ export default function QuestionCard({
   total,
   isFavorite,
   latestAnswer,
+  showPreviousAnswer = true,
   onAnswer,
   onToggleFavorite,
 }: QuestionCardProps) {
   const correctAnswer = useMemo(() => normalizeAnswer(question.answer), [question]);
-  const [selected, setSelected] = useState<string[]>(latestAnswer ?? []);
-  const [submitted, setSubmitted] = useState(Boolean(latestAnswer?.length));
+  const initialAnswer = showPreviousAnswer ? latestAnswer ?? [] : [];
+  const [selected, setSelected] = useState<string[]>(initialAnswer);
+  const [submitted, setSubmitted] = useState(
+    showPreviousAnswer && Boolean(latestAnswer?.length),
+  );
   const isCorrect = submitted && isSameAnswer(selected, correctAnswer);
 
   function choose(letter: string) {

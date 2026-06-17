@@ -14,14 +14,39 @@ function unique(values: number[]): number[] {
   return Array.from(new Set(values)).sort((left, right) => left - right);
 }
 
+function normalizeRecord(
+  record: AnswerRecord,
+  history: AnswerRecord[],
+): AnswerRecord {
+  const attempts = history.filter((item) => item.questionId === record.questionId);
+  const correctCount =
+    record.correctCount ?? attempts.filter((item) => item.isCorrect).length;
+  const wrongCount =
+    record.wrongCount ?? attempts.filter((item) => !item.isCorrect).length;
+
+  return {
+    ...record,
+    isCompleted: record.isCompleted ?? (correctCount > 0 || record.isCorrect),
+    correctCount,
+    wrongCount,
+  };
+}
+
 export function loadQuizState(): QuizState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return emptyState;
     const parsed = JSON.parse(raw) as Partial<QuizState>;
+    const history = parsed.history ?? [];
+    const latestByQuestion = Object.fromEntries(
+      Object.entries(parsed.latestByQuestion ?? {}).map(([questionId, record]) => [
+        questionId,
+        normalizeRecord(record, history),
+      ]),
+    );
     return {
-      latestByQuestion: parsed.latestByQuestion ?? {},
-      history: parsed.history ?? [],
+      latestByQuestion,
+      history,
       favorites: unique(parsed.favorites ?? []),
       wrongBook: unique(parsed.wrongBook ?? []),
       sequenceProgress: parsed.sequenceProgress,
@@ -45,15 +70,21 @@ export function recordAnswer(
   const previousAttempts = state.history.filter(
     (record) => record.questionId === questionId,
   ).length;
+  const previousRecord = state.latestByQuestion[questionId];
   const isFavorite = state.favorites.includes(questionId);
   const wrongBook = isCorrect
     ? state.wrongBook.filter((id) => id !== questionId)
     : unique([...state.wrongBook, questionId]);
+  const correctCount = (previousRecord?.correctCount ?? 0) + (isCorrect ? 1 : 0);
+  const wrongCount = (previousRecord?.wrongCount ?? 0) + (isCorrect ? 0 : 1);
 
   const record: AnswerRecord = {
     questionId,
     userAnswer,
     isCorrect,
+    isCompleted: Boolean(previousRecord?.isCompleted || isCorrect),
+    correctCount,
+    wrongCount,
     correctAnswer,
     answeredAt: new Date().toISOString(),
     attemptNumber: previousAttempts + 1,

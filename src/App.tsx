@@ -6,7 +6,8 @@ import Home from "./pages/Home";
 import Practice from "./pages/Practice";
 import Statistics from "./pages/Statistics";
 import WrongBook from "./pages/WrongBook";
-import { Question, QuizState, RouteName } from "./types";
+import { PracticeMode, Question, QuizState, RouteName } from "./types";
+import { isQuestionCompleted } from "./utils/questionUtils";
 import { loadQuizState } from "./utils/storage";
 
 const questions = questionsData as Question[];
@@ -16,7 +17,7 @@ export default function App() {
   const [state, setState] = useState<QuizState>(() => loadQuizState());
   const [targetQuestionId, setTargetQuestionId] = useState<number | undefined>();
   const [randomDefault, setRandomDefault] = useState(false);
-  const [practiceMode, setPracticeMode] = useState<"sequence" | "none">("none");
+  const [practiceMode, setPracticeMode] = useState<PracticeMode>("normal");
 
   useEffect(() => {
     document.title = "马克思主义刷题";
@@ -25,19 +26,19 @@ export default function App() {
   function go(nextRoute: RouteName) {
     setTargetQuestionId(undefined);
     setRandomDefault(false);
-    setPracticeMode("none");
+    setPracticeMode("normal");
     setRoute(nextRoute);
   }
 
   function openQuestion(questionId: number) {
     setTargetQuestionId(questionId);
     setRandomDefault(false);
-    setPracticeMode("none");
+    setPracticeMode("normal");
     setRoute("practice");
   }
 
   function startSequence() {
-    if (state.sequenceProgress?.isCompleted) {
+    if (questions.every((question) => isQuestionCompleted(state, question.id))) {
       setRoute("statistics");
       return;
     }
@@ -50,7 +51,7 @@ export default function App() {
   function startRandom() {
     setTargetQuestionId(undefined);
     setRandomDefault(true);
-    setPracticeMode("none");
+    setPracticeMode("random");
     setRoute("practice");
   }
 
@@ -79,7 +80,7 @@ export default function App() {
           setState={setState}
           startQuestionId={targetQuestionId}
           randomDefault={randomDefault}
-          progressMode={practiceMode}
+          mode={practiceMode}
         />
       ) : null}
       {route === "wrong" ? (

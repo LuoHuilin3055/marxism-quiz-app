@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import QuestionCard from "../components/QuestionCard";
-import { Question, QuizState } from "../types";
+import { PracticeMode, Question, QuizState } from "../types";
 import {
   recordAnswer,
   saveSequenceProgress,
   toggleFavorite,
 } from "../utils/storage";
-import { shuffleQuestions } from "../utils/questionUtils";
+import {
+  findNextIncompleteIndex,
+  getIncompleteQuestions,
+  isQuestionCompleted,
+  shuffleQuestions,
+} from "../utils/questionUtils";
 
 interface PracticeProps {
   title?: string;
@@ -15,7 +20,8 @@ interface PracticeProps {
   setState: (state: QuizState) => void;
   startQuestionId?: number;
   randomDefault?: boolean;
-  progressMode?: "sequence" | "none";
+  mode?: PracticeMode;
+  showPreviousAnswer?: boolean;
 }
 
 export default function Practice({
@@ -25,23 +31,41 @@ export default function Practice({
   setState,
   startQuestionId,
   randomDefault = false,
-  progressMode = "none",
+  mode = "normal",
+  showPreviousAnswer = true,
 }: PracticeProps) {
-  const [random, setRandom] = useState(randomDefault);
+  const [sessionQuestions] = useState(questions);
+  const practiceQuestions =
+    mode === "wrong" || mode === "favorite" ? sessionQuestions : questions;
+  const [random, setRandom] = useState(randomDefault || mode === "random");
+  const [includeCompletedRandom, setIncludeCompletedRandom] = useState(false);
   const [completionMessage, setCompletionMessage] = useState("");
   const [isQuestionNavOpen, setIsQuestionNavOpen] = useState(false);
   const autoNextTimer = useRef<number | undefined>();
   const orderedQuestions = useMemo(
-    () => (random ? shuffleQuestions(questions) : questions),
-    [questions, random],
+    () => {
+      if (mode === "random" && random) {
+        const randomPool = includeCompletedRandom
+          ? practiceQuestions
+          : getIncompleteQuestions(practiceQuestions, state);
+        return shuffleQuestions(randomPool);
+      }
+      return random ? shuffleQuestions(practiceQuestions) : practiceQuestions;
+    },
+    [includeCompletedRandom, mode, practiceQuestions, random],
   );
-  const startIndex = Math.max(
+  const requestedStartIndex = Math.max(
     orderedQuestions.findIndex((item) => item.id === startQuestionId),
     0,
   );
+  const startIndex =
+    mode === "sequence"
+      ? findNextIncompleteIndex(orderedQuestions, state, requestedStartIndex)
+      : requestedStartIndex;
   const [index, setIndex] = useState(startIndex);
   const question = orderedQuestions[index];
-  const isSequenceMode = progressMode === "sequence" && !random;
+  const isSequenceMode = mode === "sequence" && !random;
+  const isRandomMode = mode === "random";
 
   useEffect(() => {
     return () => {
@@ -60,7 +84,24 @@ export default function Practice({
   if (!question) {
     return (
       <main className="page">
-        <section className="empty-state">暂无题目</section>
+        <section className="empty-state">
+          {isRandomMode && !includeCompletedRandom
+            ? "所有题目已完成"
+            : isSequenceMode
+              ? "已完成全部题目"
+              : "暂无题目"}
+          {isRandomMode && !includeCompletedRandom ? (
+            <button
+              className="primary-button"
+              onClick={() => {
+                setIncludeCompletedRandom(true);
+                setIndex(0);
+              }}
+            >
+              重新随机练习全部题目
+            </button>
+          ) : null}
+        </section>
       </main>
     );
   }
@@ -110,13 +151,20 @@ export default function Practice({
     }
 
     autoNextTimer.current = window.setTimeout(() => {
-      if (index < orderedQuestions.length - 1) {
-        const nextIndex = index + 1;
+      const nextIndex = isSequenceMode
+        ? findNextIncompleteIndex(orderedQuestions, nextState, index + 1)
+        : index < orderedQuestions.length - 1
+          ? index + 1
+          : -1;
+
+      if (nextIndex !== -1) {
         setIndex(nextIndex);
         setCompletionMessage("");
         updateSequenceProgress(nextState, nextIndex);
       } else {
-        setCompletionMessage("已完成全部题目");
+        setCompletionMessage(
+          isRandomMode ? "所有题目已完成" : "已完成全部题目",
+        );
         updateSequenceProgress(nextState, index, true);
       }
     }, 700);
@@ -133,8 +181,16 @@ export default function Practice({
   }
 
   function jumpToQuestion(questionId: number) {
-    const nextIndex = orderedQuestions.findIndex((item) => item.id === questionId);
+    const nextIndex = practiceQuestions.findIndex((item) => item.id === questionId);
     if (nextIndex === -1) return;
+    if (random) {
+      setRandom(false);
+      setCompletionMessage("");
+      setIndex(nextIndex);
+      updateSequenceProgress(state, nextIndex);
+      setIsQuestionNavOpen(false);
+      return;
+    }
     moveTo(nextIndex);
     setIsQuestionNavOpen(false);
   }
@@ -157,6 +213,7 @@ export default function Practice({
               onChange={(event) => {
                 setRandom(event.target.checked);
                 setIndex(0);
+                setIncludeCompletedRandom(false);
                 setIsQuestionNavOpen(false);
               }}
             />
@@ -174,15 +231,16 @@ export default function Practice({
             </span>
           </div>
           <div className="question-number-grid">
-            {questions.map((item) => {
+            {practiceQuestions.map((item) => {
               const record = state.latestByQuestion[item.id];
               const isCurrent = item.id === question.id;
               const isFavorite = state.favorites.includes(item.id);
-              const statusClass = record
-                ? record.isCorrect
-                  ? "correct"
-                  : "incorrect"
-                : "";
+              const isCompleted = isQuestionCompleted(state, item.id);
+              const statusClass = isCompleted
+                ? "correct"
+                : state.wrongBook.includes(item.id) || record
+                  ? "incorrect"
+                  : "";
 
               return (
                 <button
@@ -195,7 +253,9 @@ export default function Practice({
                   onClick={() => jumpToQuestion(item.id)}
                 >
                   <span>{item.id}</span>
-                  {record ? <em>{record.isCorrect ? "✓" : "×"}</em> : null}
+                  {statusClass ? (
+                    <em>{statusClass === "correct" ? "✓" : "×"}</em>
+                  ) : null}
                   {isFavorite ? <small>★</small> : null}
                 </button>
               );
@@ -211,6 +271,7 @@ export default function Practice({
         total={orderedQuestions.length}
         isFavorite={state.favorites.includes(question.id)}
         latestAnswer={state.latestByQuestion[question.id]?.userAnswer}
+        showPreviousAnswer={showPreviousAnswer}
         onAnswer={saveAnswer}
         onToggleFavorite={() => setState(toggleFavorite(state, question.id))}
       />

@@ -1,4 +1,4 @@
-import { AnswerRecord, Question } from "../types";
+import { AnswerRecord, Question, QuizState } from "../types";
 
 export function normalizeAnswer(answer: string | string[]): string[] {
   return Array.isArray(answer) ? answer : [answer];
@@ -33,6 +33,43 @@ export function shuffleQuestions(questions: Question[]): Question[] {
     .map((item) => item.question);
 }
 
+export function isQuestionCompleted(
+  state: Pick<QuizState, "latestByQuestion" | "history">,
+  questionId: number,
+): boolean {
+  const latest = state.latestByQuestion[questionId];
+  return Boolean(
+    latest?.isCompleted ||
+      latest?.isCorrect ||
+      state.history.some(
+        (record) => record.questionId === questionId && record.isCorrect,
+      ),
+  );
+}
+
+export function getIncompleteQuestions(
+  questions: Question[],
+  state: Pick<QuizState, "latestByQuestion" | "history">,
+): Question[] {
+  return questions.filter((question) => !isQuestionCompleted(state, question.id));
+}
+
+export function findNextIncompleteIndex(
+  questions: Question[],
+  state: Pick<QuizState, "latestByQuestion" | "history">,
+  startIndex: number,
+): number {
+  if (!questions.length) return -1;
+  const safeStart = Math.min(Math.max(startIndex, 0), questions.length - 1);
+  for (let index = safeStart; index < questions.length; index += 1) {
+    if (!isQuestionCompleted(state, questions[index].id)) return index;
+  }
+  for (let index = 0; index < safeStart; index += 1) {
+    if (!isQuestionCompleted(state, questions[index].id)) return index;
+  }
+  return -1;
+}
+
 export function calculateOverview(
   questions: Question[],
   latestByQuestion: Record<number, AnswerRecord>,
@@ -40,7 +77,9 @@ export function calculateOverview(
   wrongBook: number[],
 ) {
   const latest = Object.values(latestByQuestion);
-  const completed = latest.length;
+  const completed = latest.filter(
+    (record) => record.isCompleted || record.isCorrect,
+  ).length;
   const correct = latest.filter((record) => record.isCorrect).length;
   const accuracy = completed ? Math.round((correct / completed) * 100) : 0;
 

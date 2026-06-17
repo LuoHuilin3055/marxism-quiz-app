@@ -18,6 +18,8 @@ export default function Favorites({ questions, state, setState }: FavoritesProps
       questions={favoriteQuestions}
       state={state}
       setState={setState}
+      mode="favorite"
+      showPreviousAnswer={false}
     />
   );
 }

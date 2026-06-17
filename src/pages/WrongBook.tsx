@@ -18,6 +18,8 @@ export default function WrongBook({ questions, state, setState }: WrongBookProps
       questions={wrongQuestions}
       state={state}
       setState={setState}
+      mode="wrong"
+      showPreviousAnswer={false}
     />
   );
 }
