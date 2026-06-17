@@ -29,6 +29,7 @@ export default function Practice({
 }: PracticeProps) {
   const [random, setRandom] = useState(randomDefault);
   const [completionMessage, setCompletionMessage] = useState("");
+  const [isQuestionNavOpen, setIsQuestionNavOpen] = useState(false);
   const autoNextTimer = useRef<number | undefined>();
   const orderedQuestions = useMemo(
     () => (random ? shuffleQuestions(questions) : questions),
@@ -131,22 +132,77 @@ export default function Practice({
     updateSequenceProgress(state, safeIndex);
   }
 
+  function jumpToQuestion(questionId: number) {
+    const nextIndex = orderedQuestions.findIndex((item) => item.id === questionId);
+    if (nextIndex === -1) return;
+    moveTo(nextIndex);
+    setIsQuestionNavOpen(false);
+  }
+
   return (
     <main className="page practice-page">
       <div className="page-title-row">
         <h1>{title}</h1>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={random}
-            onChange={(event) => {
-              setRandom(event.target.checked);
-              setIndex(0);
-            }}
-          />
-          随机
-        </label>
+        <div className="practice-tools">
+          <button
+            className="text-button"
+            onClick={() => setIsQuestionNavOpen((value) => !value)}
+          >
+            题号
+          </button>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={random}
+              onChange={(event) => {
+                setRandom(event.target.checked);
+                setIndex(0);
+                setIsQuestionNavOpen(false);
+              }}
+            />
+            随机
+          </label>
+        </div>
       </div>
+
+      {isQuestionNavOpen ? (
+        <section className="question-nav-panel">
+          <div className="question-nav-head">
+            <strong>选择题号</strong>
+            <span>
+              {index + 1} / {orderedQuestions.length}
+            </span>
+          </div>
+          <div className="question-number-grid">
+            {questions.map((item) => {
+              const record = state.latestByQuestion[item.id];
+              const isCurrent = item.id === question.id;
+              const isFavorite = state.favorites.includes(item.id);
+              const statusClass = record
+                ? record.isCorrect
+                  ? "correct"
+                  : "incorrect"
+                : "";
+
+              return (
+                <button
+                  key={item.id}
+                  className={[
+                    "question-number",
+                    statusClass,
+                    isCurrent ? "current" : "",
+                  ].join(" ")}
+                  onClick={() => jumpToQuestion(item.id)}
+                >
+                  <span>{item.id}</span>
+                  {record ? <em>{record.isCorrect ? "✓" : "×"}</em> : null}
+                  {isFavorite ? <small>★</small> : null}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <QuestionCard
         key={question.id}
