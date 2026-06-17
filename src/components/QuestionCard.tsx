@@ -27,7 +27,7 @@ export default function QuestionCard({
   const isCorrect = submitted && isSameAnswer(selected, correctAnswer);
 
   function choose(letter: string) {
-    if (submitted) return;
+    if (isCorrect) return;
     const next =
       question.type === "multiple"
         ? selected.includes(letter)
@@ -35,17 +35,15 @@ export default function QuestionCard({
           : [...selected, letter]
         : [letter];
     setSelected(next);
+    setSubmitted(false);
     if (question.type === "single") {
-      setSubmitted(true);
-      onAnswer(next, isSameAnswer(next, correctAnswer));
-    } else if (next.length === correctAnswer.length) {
       setSubmitted(true);
       onAnswer(next, isSameAnswer(next, correctAnswer));
     }
   }
 
   function submitMultiple() {
-    if (!selected.length || submitted) return;
+    if (!selected.length || isCorrect) return;
     setSubmitted(true);
     onAnswer(selected, isSameAnswer(selected, correctAnswer));
   }
@@ -88,9 +86,9 @@ export default function QuestionCard({
         })}
       </div>
 
-      {question.type === "multiple" && !submitted ? (
+      {question.type === "multiple" && !isCorrect ? (
         <button className="primary-button" onClick={submitMultiple}>
-          提交答案
+          {submitted ? "重新提交" : "提交答案"}
         </button>
       ) : null}
 
