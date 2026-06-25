@@ -73,6 +73,7 @@ export function findNextIncompleteIndex(
 export function calculateOverview(
   questions: Question[],
   latestByQuestion: Record<number, AnswerRecord>,
+  history: AnswerRecord[],
   favorites: number[],
   wrongBook: number[],
 ) {
@@ -80,8 +81,11 @@ export function calculateOverview(
   const completed = latest.filter(
     (record) => record.isCompleted || record.isCorrect,
   ).length;
-  const correct = latest.filter((record) => record.isCorrect).length;
-  const accuracy = completed ? Math.round((correct / completed) * 100) : 0;
+  const attempts = history.length || latest.length;
+  const correctAttempts = history.length
+    ? history.filter((record) => record.isCorrect).length
+    : latest.filter((record) => record.isCorrect).length;
+  const accuracy = attempts ? Math.round((correctAttempts / attempts) * 100) : 0;
 
   return {
     total: questions.length,

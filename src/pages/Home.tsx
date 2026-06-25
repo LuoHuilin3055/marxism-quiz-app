@@ -24,6 +24,7 @@ export default function Home({
   const overview = calculateOverview(
     questions,
     state.latestByQuestion,
+    state.history,
     state.favorites,
     state.wrongBook,
   );

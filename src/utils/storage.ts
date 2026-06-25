@@ -44,11 +44,15 @@ export function loadQuizState(): QuizState {
         normalizeRecord(record, history),
       ]),
     );
+    const wrongBook = unique(parsed.wrongBook ?? []).filter((questionId) => {
+      const latest = latestByQuestion[questionId];
+      return !latest || !latest.isCompleted;
+    });
     return {
       latestByQuestion,
       history,
       favorites: unique(parsed.favorites ?? []),
-      wrongBook: unique(parsed.wrongBook ?? []),
+      wrongBook,
       sequenceProgress: parsed.sequenceProgress,
     };
   } catch {
